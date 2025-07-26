@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Universal Unit Test Generator MVP
 🚀 Generates unit tests for any Python repository
@@ -32,10 +31,8 @@ import pickle
 import fnmatch
 from collections import defaultdict, deque
 
-# Load environment variables
 load_dotenv()
 
-# Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
@@ -93,7 +90,7 @@ class TestCase:
     name: str
     code: str
     target_function: str
-    test_type: str  # 'basic', 'exception', 'edge_case'
+    test_type: str 
     is_valid: bool = False
     error_message: str = ""
     attempt_count: int = 0
@@ -132,13 +129,11 @@ class UniversalRateLimitManager:
         with self.lock:
             now = time.time()
             
-            # Clean old requests
             while self.minute_requests and now - self.minute_requests[0] > 60:
                 self.minute_requests.popleft()
             while self.hour_requests and now - self.hour_requests[0] > 3600:
                 self.hour_requests.popleft()
             
-            # Conservative check with buffer
             return (len(self.minute_requests) < self.requests_per_minute - 1 and 
                    len(self.hour_requests) < self.requests_per_hour - 10)
     
@@ -151,12 +146,11 @@ class UniversalRateLimitManager:
             logger.info(f"⏳ Rate limit protection: waiting {wait_time:.1f}s (attempt {retry_count})...")
             time.sleep(wait_time)
             
-            if retry_count > 10:  # Emergency fallback
+            if retry_count > 10: 
                 logger.warning("🚨 Extended rate limit wait - using emergency delay")
-                time.sleep(300)  # 5 minute emergency wait
+                time.sleep(300)  
                 break
         
-        # Always add base delay
         time.sleep(self.current_delay)
     
     def record_request(self, success: bool = True):
@@ -169,13 +163,11 @@ class UniversalRateLimitManager:
             if success:
                 self.consecutive_errors = 0
                 self.success_streak += 1
-                # Gradually reduce delay on success
                 if self.success_streak > 3:
                     self.current_delay = max(self.base_delay, self.current_delay * 0.95)
             else:
                 self.consecutive_errors += 1
                 self.success_streak = 0
-                # Increase delay on failure
                 multiplier = 1.5 + (self.consecutive_errors * 0.3)
                 self.current_delay = min(self.max_delay, self.current_delay * multiplier)
     
@@ -218,21 +210,17 @@ class UniversalProjectAnalyzer:
         
         project = ProjectStructure(root_path=os.path.abspath(root_path))
         
-        # Find all Python files
         project.python_files = self._find_python_files(root_path)
         logger.info(f"📁 Found {len(project.python_files)} Python files")
         
-        # Analyze each file
         for file_path in project.python_files:
             try:
                 self._analyze_file(file_path, project)
             except Exception as e:
                 logger.warning(f"⚠️  Error analyzing {file_path}: {e}")
         
-        # Build dependency graph
         self._build_dependency_graph(project)
         
-        # Determine test order based on dependencies
         project.test_order = self._calculate_test_order(project)
         
         logger.info(f"✅ Analysis complete: {len(project.functions)} functions, {len(project.classes)} classes")
@@ -243,13 +231,12 @@ class UniversalProjectAnalyzer:
         python_files = []
         
         for root, dirs, files in os.walk(root_path):
-            # Filter out ignored directories
             dirs[:] = [d for d in dirs if not self._should_ignore(d)]
             
             for file in files:
                 if file.endswith('.py') and not self._should_ignore(file):
                     file_path = os.path.join(root, file)
-                    if not file.startswith('test_'):  # Skip existing test files
+                    if not file.startswith('test_'):  
                         python_files.append(file_path)
         
         return python_files
@@ -269,10 +256,8 @@ class UniversalProjectAnalyzer:
             
             tree = ast.parse(source_code)
             
-            # Extract functions and classes
             self._extract_functions_and_classes(tree, file_path, source_code, project)
             
-            # Extract dependencies
             self._extract_dependencies(tree, file_path, project)
             
         except SyntaxError as e:
@@ -287,7 +272,6 @@ class UniversalProjectAnalyzer:
         
         for node in ast.walk(tree):
             if isinstance(node, ast.FunctionDef):
-                # Check if it's a method or standalone function
                 is_method = any(isinstance(parent, ast.ClassDef) 
                               for parent in ast.walk(tree) 
                               if hasattr(parent, 'body') and node in parent.body)
@@ -304,18 +288,15 @@ class UniversalProjectAnalyzer:
         """Create detailed function information"""
         args = [arg.arg for arg in node.args.args]
         
-        # Get return annotation
         return_annotation = None
         if node.returns:
             return_annotation = ast.unparse(node.returns) if hasattr(ast, 'unparse') else str(node.returns)
         
-        # Extract parameter types
         param_types = {}
         for i, arg in enumerate(node.args.args):
             if arg.annotation:
                 param_types[arg.arg] = ast.unparse(arg.annotation) if hasattr(ast, 'unparse') else str(arg.annotation)
         
-        # Extract decorators
         decorators = []
         for decorator in node.decorator_list:
             if isinstance(decorator, ast.Name):
@@ -323,7 +304,6 @@ class UniversalProjectAnalyzer:
             elif isinstance(decorator, ast.Attribute):
                 decorators.append(ast.unparse(decorator) if hasattr(ast, 'unparse') else str(decorator))
         
-        # Extract exceptions raised
         actual_exceptions = []
         for child in ast.walk(node):
             if isinstance(child, ast.Raise) and child.exc:
@@ -332,11 +312,9 @@ class UniversalProjectAnalyzer:
                 elif isinstance(child.exc, ast.Name):
                     actual_exceptions.append(child.exc.id)
         
-        # Get source code
         end_line = node.end_lineno if hasattr(node, 'end_lineno') and node.end_lineno else min(node.lineno + 50, len(lines))
         source_code = '\n'.join(lines[node.lineno-1:end_line])
         
-        # Calculate complexity
         complexity = self._calculate_complexity(node)
         
         return FunctionInfo(
@@ -366,7 +344,6 @@ class UniversalProjectAnalyzer:
                 method_info.class_name = node.name
                 methods.append(method_info)
         
-        # Extract parent classes
         parent_classes = []
         for base in node.bases:
             if isinstance(base, ast.Name):
@@ -406,7 +383,7 @@ class UniversalProjectAnalyzer:
     
     def _calculate_complexity(self, node: ast.FunctionDef) -> int:
         """Calculate cyclomatic complexity"""
-        complexity = 1  # Base complexity
+        complexity = 1
         
         for child in ast.walk(node):
             if isinstance(child, (ast.If, ast.While, ast.For, ast.Try, ast.With)):
@@ -439,7 +416,6 @@ class UniversalProjectAnalyzer:
     
     def _calculate_test_order(self, project: ProjectStructure) -> List[str]:
         """Calculate optimal test order based on dependencies"""
-        # Simple topological sort for now
         return [self._get_module_path(f) for f in project.python_files]
 
 class UniversalTestValidator:
@@ -456,13 +432,10 @@ class UniversalTestValidator:
         self.temp_dir = tempfile.mkdtemp()
         
         try:
-            # Copy entire project structure to temp directory
             self._setup_test_environment()
             
-            # Create comprehensive test file
             test_code = self._create_universal_test_code(test_case, func_info)
             
-            # Write and run test
             test_file_path = os.path.join(self.temp_dir, 'test_universal.py')
             with open(test_file_path, 'w', encoding='utf-8') as f:
                 f.write(test_code)
@@ -487,18 +460,14 @@ class UniversalTestValidator:
     
     def _setup_test_environment(self):
         """Setup complete test environment with all dependencies"""
-        # Copy all Python files maintaining structure
         for file_path in self.project.python_files:
             rel_path = os.path.relpath(file_path, self.project.root_path)
             dest_path = os.path.join(self.temp_dir, rel_path)
             
-            # Create directories if needed
             os.makedirs(os.path.dirname(dest_path), exist_ok=True)
             
-            # Copy file
             shutil.copy2(file_path, dest_path)
         
-        # Create __init__.py files for proper imports
         self._create_init_files()
     
     def _create_init_files(self):
@@ -512,7 +481,6 @@ class UniversalTestValidator:
     def _create_universal_test_code(self, test_case: TestCase, func_info: FunctionInfo) -> str:
         """Create test code with universal imports"""
         
-        # Generate comprehensive imports
         imports = self._generate_universal_imports(func_info)
         
         return f"""{imports}
@@ -550,7 +518,6 @@ except ImportError:
 
 """
         
-        # Add specific imports for the function's module
         module_path = func_info.module_path
         file_name = Path(func_info.file_path).stem
         
@@ -569,7 +536,6 @@ except ImportError:
 
 """
         
-        # Add imports for dependencies
         for dep_name, dep_info in self.project.dependencies.items():
             if not dep_info.is_local:
                 imports += f"""
@@ -666,15 +632,14 @@ class UniversalTestGenerator:
         
     def _initialize_model(self):
         """Initialize Gemini model with fallback using latest available models"""
-        # Priority order: Latest stable models first, then fallbacks
         model_priority = [
-            'gemini-2.5-flash-lite',      # Latest, most cost-effective
-            'gemini-2.0-flash-lite',      # Stable lite version
-            'gemini-2.5-flash',           # Latest stable flash
-            'gemini-2.0-flash',           # Stable 2.0 flash
-            'gemini-1.5-flash-8b',        # Cost-effective 1.5
-            'gemini-1.5-flash',           # Reliable fallback
-            'gemini-1.5-pro',             # High capability fallback
+            'gemini-2.5-flash-lite',   
+            'gemini-2.0-flash-lite',     
+            'gemini-2.5-flash',           
+            'gemini-2.0-flash',          
+            'gemini-1.5-flash-8b',        
+            'gemini-1.5-flash',          
+            'gemini-1.5-pro',             
         ]
         
         for model_name in model_priority:
@@ -682,7 +647,6 @@ class UniversalTestGenerator:
                 model = genai.GenerativeModel(model_name)
                 self.rate_limiter.wait_if_needed()
                 
-                # Test the model with a simple prompt
                 test_response = model.generate_content(
                     "Generate a simple test", 
                     generation_config=self.generation_config
@@ -696,7 +660,6 @@ class UniversalTestGenerator:
             except Exception as e:
                 logger.warning(f"✗ Model {model_name} failed: {e}")
                 self.rate_limiter.record_request(False)
-                # Add small delay before trying next model
                 time.sleep(1)
         
         raise Exception("No compatible Gemini model found - check API key and quota")
@@ -723,7 +686,7 @@ class UniversalTestGenerator:
                 return test_case
             else:
                 logger.warning(f"❌ Test failed: {error}")
-                time.sleep(2)  # Brief delay before retry
+                time.sleep(2) 
         
         logger.error(f"❌ Failed to generate passing test for {func_info.name}")
         return None
@@ -753,7 +716,7 @@ class UniversalTestGenerator:
             if "quota" in str(e).lower() or "rate" in str(e).lower():
                 logger.error(f"🚫 Rate/quota limit: {e}")
                 self.rate_limiter.handle_quota_error()
-                time.sleep(120)  # 2 minute wait on quota issues
+                time.sleep(120)
             else:
                 logger.error(f"API call failed: {e}")
             return None
@@ -762,17 +725,14 @@ class UniversalTestGenerator:
                              test_type: str, attempt: int) -> str:
         """Create context-aware prompt for test generation"""
         
-        # Gather context about the function
         context_info = self._analyze_function_context(func_info, project)
         
-        # Create attempt-specific guidance
         attempt_guidance = ""
         if attempt == 1:
             attempt_guidance = "Previous attempt failed. Use simpler inputs and more conservative assertions."
         elif attempt == 2:
             attempt_guidance = "Previous attempts failed. Focus on minimal, basic functionality only."
         
-        # Create test type specific instructions
         if test_type == "basic":
             test_instruction = """Generate ONE basic functionality test that will DEFINITELY PASS.
 
@@ -794,7 +754,7 @@ Requirements:
 - Use inputs that will trigger the specific exception
 - Do not test exceptions not in the source code"""
 
-        else:  # edge_case
+        else: 
             test_instruction = """Generate ONE edge case test that will DEFINITELY PASS.
 
 Requirements:
@@ -848,12 +808,10 @@ The test must be complete, runnable, and guaranteed to pass.
         """Analyze function context within the project"""
         context_parts = []
         
-        # Dependencies
         local_deps = [dep.name for dep in project.dependencies.values() if dep.is_local]
         if local_deps:
             context_parts.append(f"- Local dependencies: {', '.join(local_deps[:5])}")
         
-        # Function characteristics
         if func_info.complexity_score > 5:
             context_parts.append(f"- High complexity function (score: {func_info.complexity_score})")
         
@@ -863,7 +821,6 @@ The test must be complete, runnable, and guaranteed to pass.
         if func_info.decorators:
             context_parts.append(f"- Decorators: {', '.join(func_info.decorators)}")
         
-        # Parameter analysis
         if func_info.param_types:
             context_parts.append(f"- Typed parameters: {len(func_info.param_types)}")
         
@@ -871,11 +828,9 @@ The test must be complete, runnable, and guaranteed to pass.
     
     def _parse_test_code(self, generated_text: str, func_info: FunctionInfo, test_type: str) -> Optional[TestCase]:
         """Parse generated test code"""
-        # Clean up the text
         text = re.sub(r'```python\n?', '', generated_text)
         text = re.sub(r'```\n?', '', text)
         
-        # Extract test function
         test_match = re.search(r'def (test_\w+.*?)(?=\ndef|\Z)', text, re.DOTALL)
         
         if test_match:
@@ -927,7 +882,6 @@ class UniversalTestManager:
         start_time = time.time()
         
         try:
-            # Analyze the entire project
             project = self.analyzer.analyze_project(repo_path)
             
             if not project.functions:
@@ -940,10 +894,8 @@ class UniversalTestManager:
             logger.info(f"   📦 Classes: {len(project.classes)}")
             logger.info(f"   🔗 Dependencies: {len(project.dependencies)}")
             
-            # Initialize validator
             validator = UniversalTestValidator(project)
             
-            # Generate tests for all functions
             all_passing_tests = []
             
             logger.info(f"🎯 Generating tests for {len(project.functions)} functions...")
@@ -952,14 +904,11 @@ class UniversalTestManager:
                 logger.info(f"🔄 Processing function {i}/{len(project.functions)}: {func_info.name}")
                 logger.info(f"   📍 Location: {func_info.file_path}:{func_info.line_number}")
                 
-                # Generate different types of tests
                 test_types = ["basic"]
                 
-                # Add exception tests only if function raises exceptions
                 if func_info.actual_exceptions:
                     test_types.append("exception")
                 
-                # Add edge case test for complex functions
                 if func_info.complexity_score > 2:
                     test_types.append("edge_case")
                 
@@ -976,24 +925,19 @@ class UniversalTestManager:
                 
                 all_passing_tests.extend(function_tests)
                 
-                # Progress update
                 if function_tests:
                     logger.info(f"   🎯 {len(function_tests)} passing tests for {func_info.name}")
                 else:
                     logger.warning(f"   ⚠️  No passing tests generated for {func_info.name}")
                 
-                # Rate limiting between functions
                 if i < len(project.functions):
-                    time.sleep(4)  # Conservative delay
+                    time.sleep(4)  
             
-            # Write final test file
             if all_passing_tests:
                 final_file = self._write_universal_test_file(output_file, project, all_passing_tests)
                 
-                # Cleanup any temporary files
                 self._cleanup_temp_files()
                 
-                # Generate final report
                 stats = self.generator.get_stats()
                 execution_time = time.time() - start_time
                 
@@ -1038,7 +982,6 @@ class UniversalTestManager:
         
         stats = self.generator.get_stats()
         
-        # Generate comprehensive header
         header = f'''# -*- coding: utf-8 -*-
 """
 🚀 Universal Unit Test Suite
@@ -1093,7 +1036,6 @@ if project_root not in sys.path:
 # Import all testable modules
 '''
         
-        # Add imports for all tested modules
         modules_imported = set()
         for test in passing_tests:
             if test.module_path not in modules_imported:
@@ -1112,12 +1054,10 @@ except ImportError:
 """
                 modules_imported.add(test.module_path)
         
-        # Group tests by module for organization
         tests_by_module = defaultdict(list)
         for test in passing_tests:
             tests_by_module[test.module_path].append(test)
         
-        # Build complete test file
         all_test_code = header + "\n\n"
         
         for module_path, tests in tests_by_module.items():
@@ -1126,7 +1066,6 @@ except ImportError:
             all_test_code += f"# ✅ {len(tests)} passing tests\n"
             all_test_code += f"# ={'='*80}\n\n"
             
-            # Group by function within module
             tests_by_function = defaultdict(list)
             for test in tests:
                 tests_by_function[test.target_function].append(test)
@@ -1138,7 +1077,6 @@ except ImportError:
                     all_test_code += test.code + "\n"
                 all_test_code += "\n"
         
-        # Add comprehensive footer
         all_test_code += f'''
 # {'='*80}
 # 🛡️ UNIVERSAL TEST GUARANTEE
@@ -1190,7 +1128,6 @@ def test_universal_guarantee():
 """
 '''
         
-        # Write the final test file
         try:
             with open(output_file, 'w', encoding='utf-8') as f:
                 f.write(all_test_code)
@@ -1271,10 +1208,8 @@ def main():
     print("=" * 80)
     
     try:
-        # Initialize universal test manager  
         manager = UniversalTestManager()
         
-        # Get repository path
         repo_path = sys.argv[1] if len(sys.argv) > 1 else "."
         
         if not os.path.exists(repo_path):
@@ -1286,7 +1221,6 @@ def main():
         print("🎯 Each test will be individually verified")
         print("-" * 60)
         
-        # Generate universal tests
         result = manager.generate_universal_tests(repo_path)
         
         if "error" in result:
@@ -1337,14 +1271,12 @@ def batch_repository_testing():
     try:
         manager = UniversalTestManager()
         
-        # Find Python project directories
         current_dir = "."
         project_dirs = []
         
         for item in os.listdir(current_dir):
             item_path = os.path.join(current_dir, item)
             if os.path.isdir(item_path) and not item.startswith('.'):
-                # Check if it contains Python files
                 python_files = []
                 for root, dirs, files in os.walk(item_path):
                     python_files.extend([f for f in files if f.endswith('.py')])
@@ -1357,14 +1289,14 @@ def batch_repository_testing():
             return
         
         print(f"📁 Found {len(project_dirs)} Python projects:")
-        for i, proj_dir in enumerate(project_dirs[:10], 1):  # Limit to 10
+        for i, proj_dir in enumerate(project_dirs[:10], 1): 
             print(f"   {i}. {proj_dir}")
         
         results = []
         total_tests = 0
         total_api_calls = 0
         
-        for i, proj_dir in enumerate(project_dirs[:5], 1):  # Process first 5
+        for i, proj_dir in enumerate(project_dirs[:5], 1):  
             try:
                 print(f"\n🔄 Processing project {i}/5: {proj_dir}")
                 output_file = f"test_universal_{Path(proj_dir).name}.py"
@@ -1379,7 +1311,6 @@ def batch_repository_testing():
                 else:
                     print(f"   ❌ Failed: {result['error']}")
                 
-                # Conservative delay between projects
                 if i < len(project_dirs):
                     time.sleep(10)
                     
