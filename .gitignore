@@ -96,3 +96,5 @@ ENV/
 .coverage
 htmlcov/
 .tox/
+
+test_cache.pkl
